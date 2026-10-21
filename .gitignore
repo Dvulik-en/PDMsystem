@@ -6,4 +6,4 @@ appsettings.local.json
 *.db
 *.accdb
 Output/
-repomix-output.xml
+repomix-output.xml.vscode/
