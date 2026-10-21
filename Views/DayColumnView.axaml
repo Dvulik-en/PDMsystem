@@ -1,0 +1,42 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:BKMsystem.ViewModels"
+             x:Class="BKMsystem.Views.DayColumnView"
+             x:DataType="vm:DayColumnViewModel"
+             Width="220">
+
+    <Border Name="CardRoot" Background="#161616" CornerRadius="8" Margin="4,0">
+        <Grid RowDefinitions="Auto,Auto,*">
+
+            <!-- Заголовок дня: число, день недели, сегодняшний день подсвечен -->
+            <Border Grid.Row="0" Background="{Binding HeaderBackground}"
+                    BorderBrush="{Binding HeaderAccent}" BorderThickness="0,0,0,2"
+                    CornerRadius="8,8,0,0" Padding="8,6">
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <TextBlock Text="{Binding DayNumber}" FontSize="18" FontWeight="Bold" Foreground="White"/>
+                    <TextBlock Text="{Binding WeekdayShort}" FontSize="13" Foreground="Gray" VerticalAlignment="Center"/>
+                </StackPanel>
+            </Border>
+
+            <!-- Шкала занятости дня (1-я смена / уход во 2-ю смену) + кнопка вывода 2-й смены.
+                 По умолчанию день режется ровно по 17:00 — то, что не влезло, остаётся
+                 недорезанным остатком в правой панели, пока эту кнопку не нажали. -->
+            <StackPanel Grid.Row="1" Margin="8,6,8,4" Spacing="4">
+                <ProgressBar Value="{Binding TotalFraction}" Minimum="0" Maximum="1"
+                             Height="7" CornerRadius="4" Background="#2A2A2A"
+                             Foreground="{Binding GaugeColor}"/>
+                <TextBlock Text="{Binding OccupancyText}" FontSize="10" Foreground="Gray" TextWrapping="Wrap"/>
+                <ToggleButton IsChecked="{Binding Shift2Enabled}" Click="OnShift2ToggleClick"
+                              Content="{Binding Shift2ButtonText}" FontSize="10" Padding="4,2"
+                              HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"/>
+            </StackPanel>
+
+            <!-- Часовая сетка 08:00–22:00 + плитки заданий (рисуются в коде, т.к. геометрия
+                 динамическая и плитки перетаскиваются вручную мышью) -->
+            <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                <Canvas Name="RootCanvas" Width="210" Background="Transparent"/>
+            </ScrollViewer>
+
+        </Grid>
+    </Border>
+</UserControl>

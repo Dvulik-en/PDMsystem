@@ -1,0 +1,285 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:BKMsystem.ViewModels"
+             xmlns:models="using:BKMsystem.Models"
+             xmlns:views="using:BKMsystem.Views"
+             xmlns:services="using:BKMsystem.Services"
+             x:Class="BKMsystem.Views.PlanView"
+             x:DataType="vm:PlanViewModel">
+
+    <UserControl.Styles>
+        <!-- Подсветка обязательного поля "Причина дорезки", когда попытались поставить
+             дорезку без него (см. PlanViewModel.UrgentReasonMissing) -->
+        <Style Selector="TextBox.error">
+            <Setter Property="BorderBrush" Value="#FF5252"/>
+            <Setter Property="BorderThickness" Value="2"/>
+        </Style>
+    </UserControl.Styles>
+
+    <!-- Вся вкладка теперь скроллится целиком по вертикали: на несвёрнутом/маленьком окне
+         часть блоков (особенно правая панель плиток и дерево плана) раньше просто обрезались
+         без возможности прокрутки. Внутренние сетки больше не растягиваются на "всё
+         оставшееся место" (никаких RowDefinitions="*") — каждый блок занимает ровно
+         столько, сколько нужно его содержимому, а лишнее уходит в общий вертикальный скролл. -->
+    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+    <Grid ColumnDefinitions="*, 15, 320" Margin="15">
+
+        <!-- ================= ЛЕВАЯ ЧАСТЬ: настройки + календарь + дерево плана ================= -->
+        <Grid Grid.Column="0" RowDefinitions="Auto, Auto, Auto" VerticalAlignment="Top">
+
+            <!-- Общие настройки для СЛЕДУЮЩЕЙ постановки (применяются к плитке, которую бросят
+                 на календарь) — сам Заказ/Изделие/Узел и дата теперь выбираются перетаскиванием
+                 плитки из правой панели прямо на нужный день, отдельных полей для них больше нет. -->
+            <Border Grid.Row="0" Background="#1E1E1E" CornerRadius="8" Padding="15" Margin="0,0,0,15">
+                <StackPanel Spacing="12">
+                    <TextBlock Text="Настройки постановки" FontSize="18" FontWeight="Bold" Foreground="#00E5FF"/>
+                    <TextBlock Text="Перетащите плитку заказа/изделия/узла справа на нужный день в календаре ниже — дата берётся из того, куда бросили."
+                               Foreground="Gray" FontSize="12" TextWrapping="Wrap"/>
+
+                    <!-- Конфигуратор Листа -->
+                    <WrapPanel VerticalAlignment="Center">
+                        <StackPanel Margin="0,0,10,0" Width="240">
+                            <TextBlock Text="Параметры листа" Foreground="Gray" Margin="0,0,0,4"/>
+                            <ComboBox SelectedIndex="{Binding SelectedSheetIndex}" HorizontalAlignment="Stretch">
+                                <ComboBoxItem Content="Стандартный (1500 x 6000 мм)"/>
+                                <ComboBoxItem Content="Широкий (2000 x 6000 мм)"/>
+                                <ComboBoxItem Content="Свой / Нестандартный размер"/>
+                            </ComboBox>
+                        </StackPanel>
+
+                        <!-- Выпадающие поля ширины/длины для нестандартных листов -->
+                        <StackPanel Margin="0,0,10,0" Width="120" IsVisible="{Binding IsCustomSheet}">
+                            <TextBlock Text="Ширина (мм)" Foreground="Gray" Margin="0,0,0,4"/>
+                            <NumericUpDown Value="{Binding CustomWidth}" Minimum="100" Maximum="3000"/>
+                        </StackPanel>
+
+                        <StackPanel Margin="0,0,10,0" Width="120" IsVisible="{Binding IsCustomSheet}">
+                            <TextBlock Text="Длина (мм)" Foreground="Gray" Margin="0,0,0,4"/>
+                            <NumericUpDown Value="{Binding CustomLength}" Minimum="100" Maximum="14000"/>
+                        </StackPanel>
+                    </WrapPanel>
+
+                    <!-- Срочная дорезка / Брак: находим уже существующую деталь по названию/чертежу,
+                         указываем сколько штук — время резки считается по заводской базе АДЖАН
+                         (марка стали + толщина этой детали уже известны из ведомости), но остаётся
+                         РЕДАКТИРУЕМЫМ предложением, а не жёстко зафиксированным числом — реальная
+                         скорость на станке всегда чуть отличается от справочной. -->
+                    <StackPanel Spacing="6">
+                        <CheckBox IsChecked="{Binding IsUrgent}" Content="Срочная дорезка / Брак с производства" Foreground="#FF5252" FontWeight="Bold"/>
+
+                        <StackPanel Spacing="8" IsVisible="{Binding ShowUrgentForm}" Margin="0,4,0,0">
+                            <TextBox Text="{Binding ReworkReason}" Watermark="Причина дорезки (напр. косяк на гибочнике, дорезать 4 шт) — обязательно"
+                                     Classes.error="{Binding UrgentReasonMissing}"/>
+                            <TextBlock Text="Укажите причину — без неё дорезку не поставить." Foreground="#FF5252" FontSize="11"
+                                       IsVisible="{Binding UrgentReasonMissing}"/>
+
+                            <TextBox Text="{Binding UrgentSearchText}" Watermark="🔍 Название или номер чертежа детали..."/>
+
+                            <ItemsControl ItemsSource="{Binding UrgentSearchResults}" IsVisible="{Binding !HasSelectedUrgentPart}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="services:DetailSearchResult">
+                                        <Border Background="#2A2A2A" CornerRadius="5" Padding="8,5" Margin="0,0,0,4"
+                                                Cursor="Hand" PointerPressed="OnUrgentPartPointerPressed" Tag="{Binding}">
+                                            <StackPanel>
+                                                <TextBlock Text="{Binding Title}" Foreground="White" FontSize="12" TextWrapping="Wrap"/>
+                                                <TextBlock Text="{Binding OrderName}" Foreground="Gray" FontSize="10"/>
+                                            </StackPanel>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+
+                            <Border Background="#1A3A1A" CornerRadius="5" Padding="8" IsVisible="{Binding HasSelectedUrgentPart}">
+                                <StackPanel Spacing="6">
+                                    <Grid ColumnDefinitions="*, Auto">
+                                        <TextBlock Grid.Column="0" Text="{Binding SelectedUrgentPartInfoText}" Foreground="#8BC34A" FontSize="12" TextWrapping="Wrap"/>
+                                        <Button Grid.Column="1" Content="✕" Padding="6,2" Click="OnUrgentPartClearClick"/>
+                                    </Grid>
+
+                                    <!-- Режим тока/газа ПДО не выбирает — он определяется толщиной листа
+                                         по заводскому правилу (2-8мм/80А, 10-16мм/130А, толще/260А)
+                                         автоматически (PlanViewModel.PreferredAmpModeForThickness);
+                                         какой режим взяли — видно из текста расчёта ниже. -->
+                                    <StackPanel Width="130">
+                                        <TextBlock Text="Кол-во, шт" Foreground="Gray" FontSize="11"/>
+                                        <NumericUpDown Value="{Binding UrgentQuantity}" Minimum="1" Maximum="9999" FormatString="0"/>
+                                    </StackPanel>
+
+                                    <TextBlock Text="{Binding UrgentEstimateText}" Foreground="Gray" FontSize="11" TextWrapping="Wrap"/>
+
+                                    <StackPanel Width="140">
+                                        <TextBlock Text="Итоговое время, ч" Foreground="Gray" FontSize="11"/>
+                                        <NumericUpDown Value="{Binding UrgentManualHours}" Minimum="0" Increment="0.1" FormatString="0.##"/>
+                                    </StackPanel>
+
+                                    <TextBlock Text="{Binding UrgentValidationError}" Foreground="#FF5252" FontSize="11" TextWrapping="Wrap"
+                                               IsVisible="{Binding HasUrgentValidationError}"/>
+
+                                    <Button Content="➕ Добавить дорезку в план" Click="OnAddUrgentRecutClick"
+                                            Background="#FF5252" Foreground="White" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Padding="8,6"/>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <!-- ВИЗУАЛЬНЫЙ КАЛЕНДАРЬ-ТАЙМЛАЙН: колонка на день, часовая сетка 08:00–22:00,
+                 плитки заданий можно свободно перетаскивать (порядок резки), тянуть за нижний
+                 край (сжать/растянуть длительность) и бросать сюда новые плитки из правой панели.
+                 Окно дат листается кнопками — НЕ жёстко привязано к "сегодня", чтобы можно было
+                 вернуться назад, если ПДО не успел вовремя перенести задание на прошедший день. -->
+            <Border Grid.Row="1" Background="#1E1E1E" CornerRadius="8" Padding="10" Margin="0,0,0,15">
+                <DockPanel>
+                    <Grid DockPanel.Dock="Top" ColumnDefinitions="*, Auto" Margin="0,0,0,8">
+                        <TextBlock Grid.Column="0" FontSize="14" FontWeight="Bold" Foreground="Gray" VerticalAlignment="Center"
+                                   Text="Календарь резки — перетащите плитку справа на день; тяните плитку на календаре, чтобы поменять порядок или сжать/растянуть"
+                                   TextWrapping="Wrap"/>
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                            <Button Content="← Раньше" Click="OnTimelineBackClick" Padding="8,4"/>
+                            <Button Content="Сегодня" Click="OnTimelineTodayClick" Padding="8,4" Background="#00E5FF" Foreground="Black"/>
+                            <Button Content="Позже →" Click="OnTimelineForwardClick" Padding="8,4"/>
+                            <TextBlock Text="{Binding TimelineRangeText}" Foreground="Gray" VerticalAlignment="Center" Margin="8,0,0,0"/>
+                        </StackPanel>
+                    </Grid>
+
+                    <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled" Height="800">
+                        <ItemsControl ItemsSource="{Binding TimelineDays}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <StackPanel Orientation="Horizontal"/>
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:DayColumnViewModel">
+                                    <views:DayColumnView DataContext="{Binding}"/>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                </DockPanel>
+            </Border>
+
+            <!-- ИЕРАРХИЧЕСКОЕ ДЕРЕВО ПЛАНА (Дата -> Заказ -> Изделие -> Узел). Фиксированная
+                 высота + собственный скролл у TreeView, чтобы длинный план не растягивал
+                 страницу до бесконечности — вниз можно долистать через общий скролл вкладки. -->
+            <Border Grid.Row="2" Height="420" Background="#1E1E1E" CornerRadius="8" Padding="10">
+                <DockPanel>
+                    <TextBlock DockPanel.Dock="Top" FontSize="14" FontWeight="Bold" Foreground="Gray" Margin="0,0,0,10"
+                               Text="Сформированный план по датам и заказам (ПКМ на узле — растянуть/сжать по дням)"/>
+
+                    <TreeView ItemsSource="{Binding PlanTree}">
+                        <TreeView.ItemTemplate>
+                            <TreeDataTemplate DataType="models:PlanTreeNode" ItemsSource="{Binding Children}">
+                                <TextBlock Text="{Binding Title}" FontSize="14" Margin="2">
+                                    <!-- Пункты меню безопасны и на не-Unit узлах: TaskId там 0,
+                                         а обработчики во ViewModel просто ничего не делают при TaskId <= 0. -->
+                                    <TextBlock.ContextMenu>
+                                        <ContextMenu>
+                                            <MenuItem Header="➕ Резать также на следующий день (поровну)" Click="OnAddDayClick"/>
+                                            <MenuItem Header="➖ Убрать последний день из разбивки" Click="OnRemoveDayClick"/>
+                                        </ContextMenu>
+                                    </TextBlock.ContextMenu>
+                                </TextBlock>
+                            </TreeDataTemplate>
+                        </TreeView.ItemTemplate>
+                    </TreeView>
+                </DockPanel>
+            </Border>
+
+        </Grid>
+
+        <!-- ================= ПРАВАЯ ПАНЕЛЬ: нераспределённые Заказ/Изделие/Узел плитками =================
+             Фиксированная высота у самой панели + СОБСТВЕННЫЙ внутренний скролл — список плиток
+             листается отдельно от прокрутки всей вкладки (два независимых скролла, как и просили):
+             один только для этого списка, второй — общий, для всей страницы (внешний ScrollViewer
+             вокруг всего Grid). Поиск и заголовок остаются видимыми сверху, не уезжают со скроллом. -->
+        <Border Grid.Column="2" VerticalAlignment="Top" Height="800" Background="#1E1E1E" CornerRadius="8" Padding="12">
+            <DockPanel>
+                <TextBlock DockPanel.Dock="Top" FontSize="14" FontWeight="Bold" Foreground="Gray" Margin="0,0,0,8"
+                           Text="Не запланировано — перетащите плитку на день в календаре"/>
+
+                <TextBox DockPanel.Dock="Top" Text="{Binding PoolSearchText}" Watermark="🔍 Поиск по заказу/изделию/узлу..."
+                         Margin="0,0,0,10"/>
+
+                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                    <StackPanel>
+
+                        <!-- Недорезанные остатки — время, которое где-то обрезали (сжали плитку,
+                             упёрлись в 17:00, при переносе не влезло целиком) и ещё не пристроили
+                             ни на один день. Перетаскиваются на календарь точно так же, как обычные
+                             плитки, только добавляют время к уже существующему заданию. -->
+                        <StackPanel Spacing="6" Margin="0,0,0,10" IsVisible="{Binding HasLeftovers}">
+                            <TextBlock Text="⚠ Недорезано — перетащите, чтобы дорезать на другой день" Foreground="#FF5252"
+                                       FontSize="12" FontWeight="Bold" TextWrapping="Wrap"/>
+                            <ItemsControl ItemsSource="{Binding PoolLeftovers}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:PlanPoolLeftoverItem">
+                                        <Border Background="#5A1616" CornerRadius="5" Padding="8,5" Margin="0,0,0,4"
+                                                Tag="{Binding}" PointerPressed="OnPoolTilePointerPressed" Cursor="Hand">
+                                            <TextBlock Text="{Binding Title}" Foreground="#FF8A80" FontSize="12" TextWrapping="Wrap"/>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+
+                        <ItemsControl ItemsSource="{Binding PoolOrders}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:PlanPoolOrderGroup">
+                                    <StackPanel Margin="0,0,0,12">
+
+                                        <!-- Заголовок заказа — сворачивает/разворачивает список изделий,
+                                             сам не перетаскивается (слишком крупная единица постановки) -->
+                                        <ToggleButton IsChecked="{Binding IsExpanded}" HorizontalAlignment="Stretch"
+                                                      HorizontalContentAlignment="Left" Background="#2A2A2A" Padding="8,6">
+                                            <TextBlock Text="{Binding Title}" FontWeight="Bold" Foreground="#00E5FF"
+                                                       TextWrapping="Wrap" FontSize="13"/>
+                                        </ToggleButton>
+
+                                        <ItemsControl ItemsSource="{Binding Products}" IsVisible="{Binding IsExpanded}" Margin="8,6,0,0">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate x:DataType="vm:PlanPoolProductGroup">
+                                                    <StackPanel Margin="0,0,0,8">
+
+                                                        <!-- Плитка изделия целиком — перетащить прямо её значит
+                                                             "поставить всё изделие" (узел не уточняется) -->
+                                                        <Border Background="#5A3D00" CornerRadius="5" Padding="8,5"
+                                                                Tag="{Binding}" PointerPressed="OnPoolTilePointerPressed"
+                                                                Cursor="Hand">
+                                                            <TextBlock Text="{Binding Title}" Foreground="#FFC107"
+                                                                       FontStyle="Italic" FontSize="12" TextWrapping="Wrap"/>
+                                                        </Border>
+
+                                                        <!-- Плитки конкретных узлов этого изделия -->
+                                                        <ItemsControl ItemsSource="{Binding Units}" Margin="10,5,0,0">
+                                                            <ItemsControl.ItemTemplate>
+                                                                <DataTemplate x:DataType="vm:PlanPoolUnitItem">
+                                                                    <Border Background="#0D4F63" CornerRadius="5" Padding="8,5"
+                                                                            Margin="0,0,0,4" Tag="{Binding}"
+                                                                            PointerPressed="OnPoolTilePointerPressed" Cursor="Hand">
+                                                                        <TextBlock Text="{Binding Title}" Foreground="White"
+                                                                                   FontSize="12" TextWrapping="Wrap"/>
+                                                                    </Border>
+                                                                </DataTemplate>
+                                                            </ItemsControl.ItemTemplate>
+                                                        </ItemsControl>
+
+                                                    </StackPanel>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
+                    </StackPanel>
+                </ScrollViewer>
+            </DockPanel>
+        </Border>
+
+    </Grid>
+    </ScrollViewer>
+</UserControl>

@@ -1,0 +1,117 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:BKMsystem.ViewModels"
+             xmlns:models="using:BKMsystem.Models"
+             xmlns:views="using:BKMsystem.Views"
+             mc:Ignorable="d" d:DesignWidth="1000" d:DesignHeight="600"
+             x:Class="BKMsystem.Views.NestingView"
+             x:DataType="vm:NestingViewModel">
+
+    <Grid Margin="15" RowDefinitions="Auto,*,Auto">
+        <!-- Верхняя панель оператора -->
+        <StackPanel Grid.Row="0" Spacing="10" Orientation="Horizontal" Margin="0,0,0,15">
+            <TextBlock Text="Терминал оператора плазменной резки"
+                       Foreground="White" FontSize="20" FontWeight="Bold" VerticalAlignment="Center"/>
+            <Button Content="🔄 Обновить" Command="{Binding RefreshCommand}"
+                    Background="#333" Foreground="White" Padding="12,6" VerticalAlignment="Center"/>
+        </StackPanel>
+
+        <!-- Рабочая область оператора -->
+        <Grid Grid.Row="1" ColumnDefinitions="380,*">
+            <!-- Слева: дерево Заказ -> Изделие/Узел -> Карта -> Файлы (УП, PDF) -->
+            <Border Grid.Column="0" Background="#1E1E1E" CornerRadius="8" Padding="10" Margin="0,0,10,0">
+                <DockPanel>
+                    <TextBlock DockPanel.Dock="Top" Text="Очередь на резку (по заказам)"
+                               Foreground="White" FontWeight="SemiBold" Margin="0,0,0,10"/>
+                    <TreeView ItemsSource="{Binding Tree}" SelectedItem="{Binding SelectedNode}"
+                              Background="Transparent">
+                        <TreeView.Styles>
+                            <Style Selector="TreeViewItem" x:DataType="models:NestingTreeNode">
+                                <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=OneWay}"/>
+                            </Style>
+                        </TreeView.Styles>
+                        <TreeView.ItemTemplate>
+                            <TreeDataTemplate DataType="models:NestingTreeNode" ItemsSource="{Binding Children}">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <TextBlock Text="{Binding Title}" Foreground="White" VerticalAlignment="Center"
+                                               TextWrapping="NoWrap"/>
+                                    <Border Background="#3A2E00" CornerRadius="4" Padding="6,1"
+                                            IsVisible="{Binding HasTimeInWork}" VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding TimeInWorkText}" Foreground="#FFC107" FontSize="11"
+                                                   VerticalAlignment="Center"/>
+                                    </Border>
+                                </StackPanel>
+                            </TreeDataTemplate>
+                        </TreeView.ItemTemplate>
+                    </TreeView>
+                </DockPanel>
+            </Border>
+
+            <!-- Справа: превью выбранного узла -->
+            <Border Grid.Column="1" Background="#1E1E1E" CornerRadius="8" Padding="15">
+                <Grid RowDefinitions="Auto,*">
+                    <TextBlock Grid.Row="0" Text="{Binding PreviewTitle}"
+                               Foreground="White" FontSize="15" FontWeight="SemiBold" Margin="0,0,0,10"
+                               TextWrapping="Wrap"/>
+
+                    <Grid Grid.Row="1">
+                        <!-- УП: анимация движения головки по траектории -->
+                        <Border Background="#101014" CornerRadius="4" IsVisible="{Binding IsMpgVisible}">
+                            <views:GCodePreviewControl FilePath="{Binding MpgFilePath}"/>
+                        </Border>
+
+                        <!-- PDF: встроенный просмотрщик со страницами и масштабом -->
+                        <Grid IsVisible="{Binding IsPdfVisible}" RowDefinitions="*,Auto">
+                            <ScrollViewer Grid.Row="0"
+                                        HorizontalScrollBarVisibility="Auto"
+                                        VerticalScrollBarVisibility="Auto">
+                                <views:PdfViewerControl FilePath="{Binding PdfFilePath}"
+                                                        PageIndex="{Binding PdfPageIndex}"
+                                                        Zoom="{Binding PdfZoom}"/>
+                            </ScrollViewer>
+
+                            <Border Grid.Row="1" Background="#1E1E1E" Padding="6">
+                                <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Center">
+                                    <Button Content="◀" Command="{Binding PrevPdfPageCommand}"  Background="#333" Foreground="White" Padding="14,6"/>
+                                    <TextBlock Text="{Binding PdfPageInfo}" Foreground="White" VerticalAlignment="Center" MinWidth="90" TextAlignment="Center"/>
+                                    <Button Content="▶" Command="{Binding NextPdfPageCommand}"  Background="#333" Foreground="White" Padding="14,6"/>
+                                    <Border Width="1" Background="#3A3A3A" Margin="10,0"/>
+                                    <Button Content="➖"  Command="{Binding ZoomOutPdfCommand}" Background="#333" Foreground="White" Padding="14,6"/>
+                                    <TextBlock Text="{Binding PdfZoomText}" Foreground="White" VerticalAlignment="Center" MinWidth="50" TextAlignment="Center"/>
+                                    <Button Content="➕"  Command="{Binding ZoomInPdfCommand}"  Background="#333" Foreground="White" Padding="14,6"/>
+                                    <Button Content="⟳ 100%" Command="{Binding ResetPdfZoomCommand}" Background="#333" Foreground="White" Padding="10,6"/>
+                                </StackPanel>
+                            </Border>
+                        </Grid>
+
+
+                        <!-- Текстовые подсказки -->
+                        <Border Background="#121212" CornerRadius="4" Padding="15" IsVisible="{Binding IsTextVisible}">
+                            <ScrollViewer>
+                                <TextBlock Text="{Binding PreviewText}" Foreground="#CCCCCC"
+                                           TextWrapping="Wrap" FontSize="14" LineHeight="24"/>
+                            </ScrollViewer>
+                        </Border>
+                    </Grid>
+                </Grid>
+            </Border>
+        </Grid>
+
+        <!-- Нижняя панель действий (только ограниченный набор для оператора) -->
+        <Grid Grid.Row="2" Margin="0,15,0,0" ColumnDefinitions="*,Auto">
+            <TextBlock Grid.Column="0" Text="{Binding StatusMessage}" Foreground="#8E8E93"
+                       VerticalAlignment="Center" TextWrapping="Wrap" Margin="0,0,15,0"/>
+            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="15">
+                <Button Content="💾 Выгрузить на флешку" Command="{Binding ExportUsbCommand}"
+                        IsVisible="{Binding IsExportUsbVisible}"
+                        Background="#2D5A88" Foreground="White" Padding="12,8"/>
+                <Button Content="✅ Выполнено" Command="{Binding MarkDoneCommand}"
+                        IsVisible="{Binding IsMarkDoneVisible}"
+                        IsEnabled="{Binding IsMarkDoneEnabled}"
+                        Background="#2E7D32" Foreground="White" Padding="12,8"/>
+            </StackPanel>
+        </Grid>
+    </Grid>
+</UserControl>

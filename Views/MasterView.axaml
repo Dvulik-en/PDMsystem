@@ -1,0 +1,178 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:BKMsystem.ViewModels"
+             xmlns:models="using:BKMsystem.Models"
+             x:Class="BKMsystem.Views.MasterView"
+             x:DataType="vm:MasterViewModel">
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel Margin="20" Spacing="20">
+
+            <!-- 1. ТАЙМЛАЙН — тот же, что и в "Панели" (та же плашка успели/не успели над датой) -->
+            <StackPanel Spacing="10">
+                <Grid ColumnDefinitions="Auto, *, Auto">
+                    <TextBlock Grid.Column="0" Text="Таймлайн" FontSize="22" FontWeight="Bold" Foreground="White"/>
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6">
+                        <Button Content="← Раньше" Click="OnTimelineBackClick" Padding="8,4"/>
+                        <Button Content="Сегодня" Click="OnTimelineTodayClick" Padding="8,4" Background="#00E5FF" Foreground="Black"/>
+                        <Button Content="Позже →" Click="OnTimelineForwardClick" Padding="8,4"/>
+                        <TextBlock Text="{Binding TimelineRangeText}" Foreground="Gray" FontSize="12" VerticalAlignment="Center" Margin="8,0,0,0"/>
+                    </StackPanel>
+                </Grid>
+                <ListBox ItemsSource="{Binding DateTiles}" SelectedItem="{Binding SelectedDateTile}" Background="Transparent">
+                    <ListBox.Styles>
+                        <Style Selector="ListBoxItem">
+                            <Setter Property="Padding" Value="0"/>
+                            <Setter Property="Margin" Value="0"/>
+                            <Setter Property="Background" Value="Transparent"/>
+                        </Style>
+                        <Style Selector="ListBoxItem:pointerover /template/ ContentPresenter">
+                            <Setter Property="Background" Value="Transparent"/>
+                        </Style>
+                        <Style Selector="ListBoxItem:selected /template/ ContentPresenter">
+                            <Setter Property="Background" Value="Transparent"/>
+                        </Style>
+                    </ListBox.Styles>
+                    <ListBox.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <StackPanel Orientation="Horizontal" Spacing="10"/>
+                        </ItemsPanelTemplate>
+                    </ListBox.ItemsPanel>
+                    <ListBox.ItemTemplate>
+                        <DataTemplate x:DataType="models:DateTileModel">
+                            <StackPanel Spacing="3" Width="85">
+                                <Border Background="{Binding StatusBadgeColor}" CornerRadius="4" Padding="4,2"
+                                        HorizontalAlignment="Stretch" IsVisible="{Binding HasStatusBadge}">
+                                    <TextBlock Text="{Binding StatusBadgeText}" Foreground="White" FontSize="9"
+                                               FontWeight="Bold" HorizontalAlignment="Center" TextWrapping="Wrap"/>
+                                </Border>
+                                <Border Background="{Binding TileBackground}" BorderBrush="{Binding TileBorder}"
+                                        BorderThickness="1.5" CornerRadius="8" Width="85" Height="90">
+                                    <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                                        <TextBlock Text="{Binding DayNumber}" FontSize="32" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center"/>
+                                        <TextBlock Text="{Binding MonthName}" FontSize="11" Foreground="Gray" HorizontalAlignment="Center"/>
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+            </StackPanel>
+
+            <TextBlock Text="{Binding SaveMessage}" Foreground="#66BB6A" FontSize="12" IsVisible="{Binding HasSaveMessage}"/>
+
+            <!-- 2. КАРТОЧКИ ЗАКАЗОВ -->
+            <ItemsControl ItemsSource="{Binding Cards}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="models:DashboardCardModel">
+                        <Border BorderBrush="#333" BorderThickness="1" CornerRadius="6" Background="#121212" Margin="0,0,0,15">
+                            <StackPanel>
+
+                                <!-- Поле причины — только пока не всё вырезано (для сегодня/прошлого дня);
+                                     полностью вырезанному заказу мастеру писать нечего. Предзаполнено
+                                     уже сохранённой причиной (ReasonDraft), правится и сохраняется кнопкой. -->
+                                <Border Background="{Binding StatusBannerColor}" BorderBrush="{Binding StatusBannerBorder}"
+                                        BorderThickness="0,0,0,2" Padding="12,10" IsVisible="{Binding ShowStatusBanner}">
+                                    <StackPanel Spacing="6">
+                                        <TextBlock Text="✗ Не вырезано — укажите причину:" Foreground="White" FontWeight="Bold" FontSize="12"/>
+                                        <Grid ColumnDefinitions="*, Auto">
+                                            <TextBox Grid.Column="0" Text="{Binding ReasonDraft}"
+                                                     Watermark="Например: не хватило металла, сломался станок, приоритет отдали другому заказу..."
+                                                     TextWrapping="Wrap" AcceptsReturn="True" MinHeight="40"/>
+                                            <Button Grid.Column="1" Content="💾 Сохранить" Click="OnSaveReasonClick"
+                                                    Margin="8,0,0,0" VerticalAlignment="Top" Background="#2D5A88" Foreground="White"/>
+                                        </Grid>
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- Шапка: Дата | Заказ | Примечание | Прогресс -->
+                                <Border Background="#1A1A1A" Padding="12">
+                                    <Grid ColumnDefinitions="100, 3*, 2*, Auto">
+                                        <StackPanel Grid.Column="0">
+                                            <TextBlock Text="Дата" FontSize="11" Foreground="Gray"/>
+                                            <TextBlock Text="{Binding DateStr}" Foreground="White" FontWeight="Bold"/>
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="1">
+                                            <TextBlock Text="Заказ" FontSize="11" Foreground="Gray"/>
+                                            <TextBlock Text="{Binding OrderName}" Foreground="White" FontWeight="Bold" TextWrapping="Wrap"/>
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="2">
+                                            <TextBlock Text="Примечание" FontSize="11" Foreground="Gray"/>
+                                            <TextBlock Text="{Binding Note}" Foreground="White" TextWrapping="Wrap"/>
+                                        </StackPanel>
+                                        <TextBlock Grid.Column="3" Text="{Binding ProgressText}" Foreground="#66BB6A"
+                                                   FontWeight="Bold" VerticalAlignment="Center"/>
+                                    </Grid>
+                                </Border>
+
+                                <Button Content="{Binding ToggleText}" Click="OnCardToggleClick"
+                                        Background="Transparent" Foreground="#8E8E93"
+                                        HorizontalAlignment="Left" Margin="10,5"/>
+
+                                <StackPanel IsVisible="{Binding IsExpanded}" Margin="15,0,15,15">
+
+                                    <ItemsControl ItemsSource="{Binding Products}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate x:DataType="models:DashboardProductLine">
+                                                <Border Background="#1C1C1E" BorderBrush="#333" BorderThickness="1"
+                                                        CornerRadius="6" Padding="10" Margin="0,3">
+                                                    <Grid ColumnDefinitions="2*, 2*">
+                                                        <StackPanel Grid.Column="0">
+                                                            <TextBlock Text="Изделие" FontSize="10" Foreground="Gray"/>
+                                                            <TextBlock Text="{Binding ProductTitle}" Foreground="White"
+                                                                       FontWeight="Bold" TextWrapping="Wrap"/>
+                                                        </StackPanel>
+                                                        <StackPanel Grid.Column="1">
+                                                            <TextBlock Text="Узлы" FontSize="10" Foreground="Gray"/>
+                                                            <TextBlock Text="{Binding UnitsText}" Foreground="#D0D0D0"
+                                                                       TextWrapping="Wrap"/>
+                                                        </StackPanel>
+                                                    </Grid>
+                                                </Border>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+
+                                    <Border Background="#252528" CornerRadius="4" Padding="10,6" Margin="0,10,0,3">
+                                        <Grid ColumnDefinitions="3*, 150, 80, 2*, 120">
+                                            <TextBlock Grid.Column="0" Text="Шифр (деталь)" FontSize="11" Foreground="Gray" FontWeight="Bold"/>
+                                            <TextBlock Grid.Column="1" Text="Размеры" FontSize="11" Foreground="Gray" FontWeight="Bold"/>
+                                            <TextBlock Grid.Column="2" Text="Кол-во" FontSize="11" Foreground="Gray" FontWeight="Bold"/>
+                                            <TextBlock Grid.Column="3" Text="УП" FontSize="11" Foreground="Gray" FontWeight="Bold"/>
+                                            <TextBlock Grid.Column="4" Text="Статус" FontSize="11" Foreground="Gray" FontWeight="Bold" HorizontalAlignment="Center"/>
+                                        </Grid>
+                                    </Border>
+
+                                    <ItemsControl ItemsSource="{Binding Parts}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate x:DataType="models:DashPartRow">
+                                                <Border BorderBrush="#333" BorderThickness="1" CornerRadius="6"
+                                                        Padding="10,6" Margin="0,2" Background="#1C1C1E">
+                                                    <Grid ColumnDefinitions="3*, 150, 80, 2*, 120">
+                                                        <TextBlock Grid.Column="0" Text="{Binding Cipher}" Foreground="White"
+                                                                   FontWeight="SemiBold" TextWrapping="Wrap" VerticalAlignment="Center"/>
+                                                        <TextBlock Grid.Column="1" Text="{Binding Dimensions}" Foreground="#D0D0D0" VerticalAlignment="Center"/>
+                                                        <TextBlock Grid.Column="2" Text="{Binding Quantity}" Foreground="#FFD60A" VerticalAlignment="Center"/>
+                                                        <TextBlock Grid.Column="3" Text="{Binding UpList}" Foreground="#00E5FF"
+                                                                   TextWrapping="Wrap" VerticalAlignment="Center"/>
+                                                        <Border Grid.Column="4" Background="{Binding StatusColor}" CornerRadius="4"
+                                                                Padding="8,3" VerticalAlignment="Center">
+                                                            <TextBlock Text="{Binding StatusText}" Foreground="White"
+                                                                       HorizontalAlignment="Center" FontWeight="Bold" FontSize="11"/>
+                                                        </Border>
+                                                    </Grid>
+                                                </Border>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

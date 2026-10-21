@@ -1,0 +1,60 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:models="clr-namespace:BKMsystem.Models"
+             x:Class="BKMsystem.Views.StatementView">
+	<Grid Margin="10">
+		<TreeView Name="Tree"
+            DoubleTapped="OnTreeVievDoubleTapped">
+			<TreeView.ItemTemplate>
+				<TreeDataTemplate DataType="models:StatementItem" ItemsSource="{Binding Children}">
+					<Grid ColumnDefinitions="Auto,*,Auto" Background="Transparent" Margin="2">
+						<!-- Иконка (меняется в зависимости от типа детали: 📁, 📦, 🧩, 🔧, ⭕, 📐, 🔥) -->
+						<TextBlock Grid.Column="0" Text="{Binding Icon}" Margin="0,0,8,0"/>
+
+						<!-- Название детали ([Чертеж] Наименование) -->
+						<TextBlock Grid.Column="1" Text="{Binding Title}" Foreground="#D0D0D0" VerticalAlignment="Center"/>
+
+						<!-- Правая панель информации для деталей -->
+						<StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="10" Margin="15,0,0,0" IsVisible="{Binding !IsGroup}">
+
+							<!-- Отображение профиля/размеров для труб/швеллеров если есть -->
+							<Border Background="#212529" CornerRadius="4" Padding="6,2" IsVisible="{Binding Profile, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+								<TextBlock Text="{Binding Profile}" Foreground="#E0E0E0" FontSize="11" VerticalAlignment="Center"/>
+							</Border>
+
+							<!-- Толщина / Параметры и Марка стали -->
+							<Border Background="#2A2A2A" CornerRadius="4" Padding="6,2">
+								<StackPanel Orientation="Horizontal" Spacing="4">
+									<TextBlock Text="{Binding Thickness, StringFormat='{}s={0} мм'}"
+											   Foreground="#00E5FF"
+											   FontWeight="SemiBold"
+											   FontSize="12"
+											   IsVisible="{Binding Thickness, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+
+									<TextBlock Text="|" Foreground="#555555" FontSize="12"
+											   IsVisible="{Binding Thickness, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+
+									<TextBlock Text="{Binding SteelGrade}" Foreground="#AAAAAA" FontSize="11" VerticalAlignment="Center"/>
+								</StackPanel>
+							</Border>
+
+							<!-- Количество -->
+							<TextBlock Text="{Binding Quantity, StringFormat='{}x{0} шт.'}" Foreground="#FFB000" FontWeight="Bold" FontSize="12" VerticalAlignment="Center"/>
+						</StackPanel>
+
+						<!-- Бейдж времени резки на плазме — только на узле (🧩), где оно реально прочитано
+						     из листа "Трудоёмкость" ведомости. Отдельно от панели деталей выше, потому что
+						     относится к узлу целиком, а не к конкретной детали. -->
+						<Border Grid.Column="2" Background="#2E1F00" CornerRadius="4" Padding="6,2" Margin="15,0,0,0"
+								IsVisible="{Binding PlasmaCuttingTimeText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+							<StackPanel Orientation="Horizontal" Spacing="4">
+								<TextBlock Text="🔥" FontSize="11" VerticalAlignment="Center"/>
+								<TextBlock Text="{Binding PlasmaCuttingTimeText}" Foreground="#FFA000" FontWeight="SemiBold" FontSize="12" VerticalAlignment="Center"/>
+							</StackPanel>
+						</Border>
+					</Grid>
+				</TreeDataTemplate>
+			</TreeView.ItemTemplate>
+		</TreeView>
+	</Grid>
+</UserControl>

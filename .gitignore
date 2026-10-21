@@ -1,0 +1,9 @@
+bin/
+obj/
+.vs/
+*.user
+appsettings.local.json
+*.db
+*.accdb
+Output/
+repomix-output.xml

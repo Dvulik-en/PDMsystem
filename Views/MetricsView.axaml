@@ -1,0 +1,189 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:BKMsystem.ViewModels"
+             xmlns:models="using:BKMsystem.Models"
+             x:Class="BKMsystem.Views.MetricsView"
+             x:DataType="vm:MetricsViewModel">
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel Margin="20" Spacing="20">
+
+            <!-- Заголовок + листание месяца -->
+            <Grid ColumnDefinitions="Auto, *, Auto">
+                <TextBlock Grid.Column="0" Text="{Binding MonthTitle}" FontSize="20" FontWeight="Bold"
+                           Foreground="White" VerticalAlignment="Center"/>
+                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6">
+                    <Button Content="← Пред. месяц" Click="OnMonthBackClick" Padding="8,4"/>
+                    <Button Content="Текущий" Click="OnMonthTodayClick" Padding="8,4" Background="#00E5FF" Foreground="Black"/>
+                    <Button Content="След. месяц →" Click="OnMonthForwardClick" Padding="8,4"/>
+                </StackPanel>
+            </Grid>
+
+            <!-- Предупреждение "плазма может не успеть к концу месяца" -->
+            <Border Background="#3A0000" BorderBrush="#C62828" BorderThickness="0,0,0,3" CornerRadius="6"
+                    Padding="14,10" IsVisible="{Binding ShowMonthEndWarning}">
+                <StackPanel Orientation="Horizontal" Spacing="10">
+                    <TextBlock Text="⚠" FontSize="20" Foreground="#FF6659" VerticalAlignment="Center"/>
+                    <TextBlock Text="{Binding MonthEndWarningText}" Foreground="White" TextWrapping="Wrap"
+                               VerticalAlignment="Center"/>
+                </StackPanel>
+            </Border>
+
+            <!-- 1. ПОКАЗАТЕЛИ — кольца с процентами (как на референсе пользователя) -->
+            <Border Background="#1A1A1A" CornerRadius="8" Padding="16">
+                <StackPanel Spacing="12">
+                    <TextBlock Text="Показатели" Foreground="White" FontWeight="Bold" FontSize="14"/>
+                    <ItemsControl ItemsSource="{Binding RingGauges}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <StackPanel Orientation="Horizontal" Spacing="24"/>
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="models:RingGaugeModel">
+                                <StackPanel Spacing="8" Width="110">
+                                    <Viewbox Width="90" Height="90" HorizontalAlignment="Center">
+                                        <Canvas Width="100" Height="100">
+                                            <Ellipse Width="100" Height="100" Stroke="#2A2A2A" StrokeThickness="10"/>
+                                            <Path Data="{Binding ArcPathData}" Stroke="{Binding RingColor}"
+                                                  StrokeThickness="10" StrokeLineCap="Round"/>
+                                            <TextBlock Text="{Binding PercentText}" Foreground="White"
+                                                       FontSize="20" FontWeight="Bold"
+                                                       Width="100" TextAlignment="Center" Canvas.Top="40"/>
+                                        </Canvas>
+                                    </Viewbox>
+                                    <TextBlock Text="{Binding Label}" Foreground="Gray" FontSize="12"
+                                               TextAlignment="Center" TextWrapping="Wrap"/>
+                                </StackPanel>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </Border>
+
+            <!-- 2. НОРМА (ведомость) vs ФАКТ (реальное время резки) по узлам — для директора:
+                 где именно расходится норма и факт и на сколько, а не просто цифры оператору. -->
+            <Border Background="#1A1A1A" CornerRadius="8" Padding="16" IsVisible="{Binding HasUnitTimeRows}">
+                <StackPanel Spacing="10">
+                    <TextBlock Text="Норма (ведомость) vs факт по узлам за месяц" Foreground="White"
+                               FontWeight="Bold" FontSize="14"/>
+                    <TextBlock Text="Факт — рабочее время от выгрузки УП на флешку до отметки «Выполнено» (без ночей и выходных без плана), просуммировано по всем УП узла."
+                               Foreground="#8E8E93" FontSize="11" TextWrapping="Wrap"/>
+
+                    <ItemsControl ItemsSource="{Binding UnitTimeRows}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="models:MetricsUnitTimeRow">
+                                <Border Background="#141414" CornerRadius="6" Padding="12" Margin="0,0,0,8">
+                                    <StackPanel Spacing="6">
+                                        <Grid ColumnDefinitions="*, Auto, Auto">
+                                            <TextBlock Grid.Column="0" Text="{Binding UnitLabel}" Foreground="White"
+                                                       FontWeight="SemiBold" TextWrapping="Wrap"/>
+                                            <TextBlock Grid.Column="1" Text="{Binding NormText}" Foreground="Gray"
+                                                       FontSize="12" Margin="10,0" VerticalAlignment="Center"/>
+                                            <TextBlock Grid.Column="2" Text="{Binding FactText}" Foreground="Gray"
+                                                       FontSize="12" VerticalAlignment="Center"/>
+                                        </Grid>
+
+                                        <!-- Шкала: серая полоса = норма (100%, до 220px), цветная поверх = факт
+                                             (может быть длиннее нормы при перерасходе, до 200% = 440px) -->
+                                        <Canvas Height="14" Width="440" HorizontalAlignment="Left" ClipToBounds="True">
+                                            <Border Canvas.Left="0" Height="14" Width="{Binding NormBarWidth}"
+                                                    Background="#3A3A3A" CornerRadius="3"/>
+                                            <Border Canvas.Left="0" Height="14" Width="{Binding FactBarWidth}"
+                                                    Background="{Binding BarColor}" CornerRadius="3"/>
+                                        </Canvas>
+
+                                        <TextBlock Text="{Binding DeltaText}" Foreground="{Binding BarColor}" FontSize="12"/>
+                                    </StackPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </Border>
+
+            <!-- 3. КВАДРАТИКИ (слева) + СВОДКА ПО ВРЕМЕНИ (справа) -->
+            <Grid ColumnDefinitions="Auto, 20, *">
+
+                <StackPanel Grid.Column="0" Spacing="10" Width="290">
+                    <TextBlock Text="Календарь месяца" Foreground="White" FontWeight="Bold" FontSize="14"/>
+
+                    <UniformGrid Columns="7">
+                        <TextBlock Text="Пн" Foreground="Gray" FontSize="10" HorizontalAlignment="Center"/>
+                        <TextBlock Text="Вт" Foreground="Gray" FontSize="10" HorizontalAlignment="Center"/>
+                        <TextBlock Text="Ср" Foreground="Gray" FontSize="10" HorizontalAlignment="Center"/>
+                        <TextBlock Text="Чт" Foreground="Gray" FontSize="10" HorizontalAlignment="Center"/>
+                        <TextBlock Text="Пт" Foreground="Gray" FontSize="10" HorizontalAlignment="Center"/>
+                        <TextBlock Text="Сб" Foreground="Gray" FontSize="10" HorizontalAlignment="Center"/>
+                        <TextBlock Text="Вс" Foreground="Gray" FontSize="10" HorizontalAlignment="Center"/>
+                    </UniformGrid>
+
+                    <ItemsControl ItemsSource="{Binding DaySquares}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <UniformGrid Columns="7"/>
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="models:MetricsDaySquareModel">
+                                <Border Background="{Binding SquareColor}" CornerRadius="6" Margin="2" Height="34"
+                                        ToolTip.Tip="{Binding TooltipText}"
+                                        Cursor="Hand" IsVisible="{Binding IsCurrentMonth}">
+                                    <TextBlock Text="{Binding DayNumber}" Foreground="White" FontSize="11"
+                                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+
+                    <!-- Легенда -->
+                    <StackPanel Spacing="4" Margin="0,6,0,0">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <Border Background="#2E7D32" Width="12" Height="12" CornerRadius="3"/>
+                            <TextBlock Text="Выполнено" Foreground="Gray" FontSize="11"/>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <Border Background="#C49000" Width="12" Height="12" CornerRadius="3"/>
+                            <TextBlock Text="Не успели, причина указана" Foreground="Gray" FontSize="11"/>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <Border Background="#C62828" Width="12" Height="12" CornerRadius="3"/>
+                            <TextBlock Text="Не успели, без причины" Foreground="Gray" FontSize="11"/>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <Border Background="#2A2A2A" Width="12" Height="12" CornerRadius="3"/>
+                            <TextBlock Text="Ничего не запланировано" Foreground="Gray" FontSize="11"/>
+                        </StackPanel>
+                    </StackPanel>
+                </StackPanel>
+
+                <StackPanel Grid.Column="2" Spacing="14" VerticalAlignment="Top">
+                    <TextBlock Text="Сводка по срокам" Foreground="White" FontWeight="Bold" FontSize="14"/>
+
+                    <ItemsControl ItemsSource="{Binding StatCards}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <UniformGrid Columns="3"/>
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="models:MetricsStatCardModel">
+                                <Border Background="#1A1A1A" BorderBrush="#2E7D32" BorderThickness="0,0,0,3"
+                                        CornerRadius="8" Padding="16" Margin="0,0,10,10">
+                                    <StackPanel Spacing="4">
+                                        <TextBlock Text="{Binding Title}" Foreground="Gray" FontSize="12"/>
+                                        <TextBlock Text="{Binding Value}" Foreground="#66BB6A" FontSize="28" FontWeight="Bold"/>
+                                        <TextBlock Text="{Binding Subtitle}" Foreground="#8E8E93" FontSize="11" TextWrapping="Wrap"/>
+                                    </StackPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+
+                    <TextBlock Text="{Binding StatsNote}" Foreground="#8E8E93" FontSize="11" TextWrapping="Wrap" FontStyle="Italic"/>
+                </StackPanel>
+            </Grid>
+
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

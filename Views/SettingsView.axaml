@@ -1,0 +1,44 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="BKMsystem.Views.SettingsView">
+	<ScrollViewer>
+		<StackPanel Margin="20" Spacing="15" MaxWidth="700" HorizontalAlignment="Left">
+			<TextBlock Text="Настройки и Импорт Данных" FontSize="20" FontWeight="Bold" />
+
+			<Border Padding="15" Background="#2D2D2D" CornerRadius="8">
+				<StackPanel Spacing="10">
+					<TextBlock Text="Загрузка ведомостей в базу данных" FontSize="16" FontWeight="SemiBold" />
+					<TextBlock Text="Выберите папку с XLSX ведомостями для перепарсинга и обновления базы."
+							   TextWrapping="Wrap" Foreground="Gray" />
+
+					<Button Content="Парсить ведомости из папки"
+							Click="OnParseFolderClicked"
+							Padding="10,6"
+							HorizontalAlignment="Left" />
+
+					<ProgressBar Name="ParseProgressBar"
+								 IsVisible="False"
+								 Minimum="0" Maximum="100"
+								 Height="15" />
+					<TextBlock Name="StatusTextBlock" Foreground="LightGreen" TextWrapping="Wrap" />
+				</StackPanel>
+			</Border>
+
+			<!-- Блок администратора: заявки на регистрацию. Виден только роли Admin -->
+			<Border x:Name="AdminPanel" Padding="15" Background="#2D2D2D" CornerRadius="8" IsVisible="False">
+				<StackPanel Spacing="10">
+					<TextBlock Text="Заявки на регистрацию (назначение ролей)" FontSize="16" FontWeight="SemiBold"
+							   Foreground="#00E5FF" />
+					<TextBlock Text="Новый пользователь не сможет войти, пока вы не назначите ему роль."
+							   TextWrapping="Wrap" Foreground="Gray" FontSize="12" />
+
+					<StackPanel x:Name="PendingUsersList" Spacing="8" />
+					<TextBlock x:Name="NoPendingText" Text="Новых заявок нет." Foreground="Gray" FontStyle="Italic" />
+
+					<Button Content="🔄 Обновить список" Click="OnRefreshPendingClicked"
+							Padding="10,6" HorizontalAlignment="Left" />
+				</StackPanel>
+			</Border>
+		</StackPanel>
+	</ScrollViewer>
+</UserControl>
